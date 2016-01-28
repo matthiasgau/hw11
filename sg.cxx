@@ -15,25 +15,31 @@ void init( cmplx* const psi0, const double alpha, const double lambda,
 void writeToFile(const cmplx* const v, const string s, const double dx,
          const int Nx, const double xmin, const double alpha,
          const double lambda, const double omega, const double t);
+
+void step(cmplx* const psi1, cmplx* const psi0, const double dt,
+	 const double dx, const double omega, const int Nx, const double xmin);
 //-----------------------------------
 int main(){
 
-	const int Nx = ;
-	const double xmin = ;
-  const double xmax = ;
-	const double Tend = ;
-	const double dx = ;
-	const double dt =   ;
+	const int Nx = 300;
+	const double xmin = -40;
+  const double xmax = 40;
+	const double Tend = 10.0*M_PI;
+	const double dx = (xmax-xmin)/(Nx-1);
+	const double dt =   0.1*dx;
   double t = 0;
 	const int Na = 10;
 	int Nk = int(Tend / Na / dt + 0.5);
 
 	const double lambda = 10;
   const double omega = 0.2;
+  const double alpha = sqrt(omega);
 
   stringstream strm;
 
 	cmplx* psi0 = new cmplx[Nx];
+	cmplx* psi1 = new cmplx[Nx];
+	cmplx* h;
 
 	init(psi0, alpha, lambda, dx, dt, Nx, xmin);
 
@@ -44,13 +50,22 @@ int main(){
 	for (int i = 1; i <= Na; i++) {
 		for (int j = 1; j <= Nk-1; j++) {
 
-         t+=dt;
+		  step(psi1, psi0, dt, dx, omega, Nx, xmin);
+		  
+		  h = psi0;
+		  psi0 = psi1;
+		  psi1 = h;
+		  t+=dt;
 		}
+		
 		strm.str("");
 		strm << "psi_" << i;
 		writeToFile(psi0,strm.str(), dx,Nx,xmin, alpha, lambda, omega,t);
 	}
   cout << "t = " << t << endl;
+  
+  delete[] psi0;
+  delete[] psi1;
 
 	return 0;
 }
@@ -91,3 +106,42 @@ void init( cmplx* const psi0, const double alpha, const double lambda,
 		psi0[i] = sqrt(alpha/sqrt(M_PI)) * exp(- pow(alpha*(x-lambda),2)/2 );
 	}
 }
+
+//------------------------------------
+
+void step(cmplx* const psi1, cmplx* const psi0, const double dt, const double dx, 
+	  const double omega, const int Nx, const double xmin){
+  cmplx* a = new cmplx[Nx];
+  cmplx* d = new cmplx[Nx];
+  cmplx* phi = new cmplx[Nx]; //new vector, A* times psi0
+  double x;
+  cmplx j = cmplx(0.0,1.0);
+  
+  for(int i=0; i<Nx; i++){
+      x  = xmin + i*dx;
+    a[i] = -j*dt/(4.0*dx*dx);
+    d[i] = 1.0 + j*(dt/(2*dx*dx)+dt/(4.0)*omega*omega*x*x);
+  }
+  
+  phi[0] = conj(d[0])*psi0[0]+conj(a[1])*psi0[1];
+  for(int i=1;i<Nx-1;i++)
+    phi[i] = conj(a[i-1])*psi0[i-1]+conj(d[i])*psi0[i]+conj(a[i+1])*psi0[i+1];
+  phi[Nx-1] = conj(a[Nx-2])*psi0[Nx-2]+conj(d[Nx-1])*psi0[Nx-1];
+  
+  for(int i=1;i<Nx;i++){
+    d[i] -= a[i]*a[i]/d[i-1];
+    phi[i] -= a[i]/d[i-1]*phi[i-1];
+  }
+  psi1[Nx-1] = phi[Nx-1];
+  
+  for(int i=Nx-2;i>=0;i--)
+    psi1[i] = (phi[i]-a[i]*psi1[i+1])/d[i];
+  
+  
+  delete[] a;
+  delete[] d;
+  delete[] phi;
+}
+  
+    
+     
