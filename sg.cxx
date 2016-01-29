@@ -132,10 +132,16 @@ void step(cmplx* const psi1, cmplx* const psi0, const double dt, const double dx
     d[i] -= a[i]*a[i]/d[i-1];
     phi[i] -= a[i]/d[i-1]*phi[i-1];
   }
+  
+  
+  for(int i=0;i<Nx;i++){
+     a[i]/=d[i];
+     phi[i]/=d[i];
+  }
   psi1[Nx-1] = phi[Nx-1];
   
   for(int i=Nx-2;i>=0;i--)
-    psi1[i] = (phi[i]-a[i]*psi1[i+1])/d[i];
+    psi1[i] = phi[i]-a[i]*psi1[i+1];
   
   
   delete[] a;
